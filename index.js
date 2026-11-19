@@ -62,7 +62,7 @@ app.post("/api/jwt", async (req, res) => {
 
 app.get("/", (req, res) => res.send("MentorLagbe server is running"));
 
-app.use("/tuitions", tuitionsRoutes(db));
+app.use("/tuitions", tuitionsRoutes(db, { verifyToken, verifyTutor }));
 
 app.use(
   "/applications",
