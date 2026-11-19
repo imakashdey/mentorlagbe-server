@@ -8,6 +8,7 @@ import { createAuth } from "./config/auth.js";
 import { createMiddlewares } from "./middlewares/index.js";
 import { tuitionsRoutes } from "./routes/tuitions.js";
 import { applicationsRoutes } from "./routes/applications.js";
+import { adminRoutes } from "./routes/admin.js";
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -62,12 +63,13 @@ app.post("/api/jwt", async (req, res) => {
 
 app.get("/", (req, res) => res.send("MentorLagbe server is running"));
 
-app.use("/tuitions", tuitionsRoutes(db, { verifyToken, verifyTutor }));
 
-app.use(
-  "/applications",
-  applicationsRoutes(db, { verifyToken, verifyStudent, verifyTutor })
-);
+
+app.use("/tuitions", tuitionsRoutes(db, { verifyToken, verifyTutor }));
+app.use("/applications",applicationsRoutes(db, { verifyToken, verifyStudent, verifyTutor }));
+app.use("/admin", adminRoutes(db, { verifyToken, verifyAdmin }));
+
+
 
 app.get("/me", verifyToken, async (req, res) => {
   const user = await usersCollection.findOne({ email: req.decoded.email });
