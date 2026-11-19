@@ -7,6 +7,7 @@ import { toNodeHandler, fromNodeHeaders } from "better-auth/node";
 import { createAuth } from "./config/auth.js";
 import { createMiddlewares } from "./middlewares/index.js";
 import { tuitionsRoutes } from "./routes/tuitions.js";
+import { applicationsRoutes } from "./routes/applications.js";
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -26,14 +27,11 @@ const client = new MongoClient(process.env.MONGODB_URI, {
   },
 });
 
-// Top-level await: Vercel এও কাজ করবে
 await client.connect();
 const db = client.db("mentorlagbe");
 
 const usersCollection = db.collection("users");
-const tuitionsCollection = db.collection("tuitions");
 const applicationsCollection = db.collection("applications");
-const paymentsCollection = db.collection("payments");
 
 await usersCollection.createIndex({ email: 1 }, { unique: true });
 await applicationsCollection.createIndex(
@@ -45,12 +43,9 @@ const auth = createAuth(db, client);
 const { verifyToken, verifyStudent, verifyTutor, verifyAdmin } =
   createMiddlewares(db);
 
-// 1) BetterAuth (অবশ্যই express.json() এর আগে)
 app.all("/api/auth/{*any}", toNodeHandler(auth));
 
-// 2) Body parser
 app.use(express.json());
-
 
 app.post("/api/jwt", async (req, res) => {
   const session = await auth.api.getSession({
@@ -65,18 +60,21 @@ app.post("/api/jwt", async (req, res) => {
   res.send({ token });
 });
 
-// 4) Routes
 app.get("/", (req, res) => res.send("MentorLagbe server is running"));
 
 app.use("/tuitions", tuitionsRoutes(db));
 
+app.use(
+  "/applications",
+  applicationsRoutes(db, { verifyToken, verifyStudent, verifyTutor })
+);
 
 app.get("/me", verifyToken, async (req, res) => {
   const user = await usersCollection.findOne({ email: req.decoded.email });
   res.send(user);
 });
 
-export default app; 
+export default app;
 
 if (!process.env.VERCEL) {
   app.listen(port, () => console.log(`Server running on port ${port}`));
