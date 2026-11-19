@@ -6,6 +6,7 @@ import { MongoClient, ServerApiVersion } from "mongodb";
 import { toNodeHandler, fromNodeHeaders } from "better-auth/node";
 import { createAuth } from "./config/auth.js";
 import { createMiddlewares } from "./middlewares/index.js";
+import { tuitionsRoutes } from "./routes/tuitions.js";
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -50,7 +51,7 @@ app.all("/api/auth/{*any}", toNodeHandler(auth));
 // 2) Body parser
 app.use(express.json());
 
-// 3) JWT issue: session cookie থেকে user চিনে token দেয়
+
 app.post("/api/jwt", async (req, res) => {
   const session = await auth.api.getSession({
     headers: fromNodeHeaders(req.headers),
@@ -67,20 +68,15 @@ app.post("/api/jwt", async (req, res) => {
 // 4) Routes
 app.get("/", (req, res) => res.send("MentorLagbe server is running"));
 
-app.get("/tuitions", async (req, res) => {
-  const result = await tuitionsCollection
-    .find({ approvalStatus: "approved", isActive: true })
-    .toArray();
-  res.send(result);
-});
+app.use("/tuitions", tuitionsRoutes(db));
 
-// Token ঠিকমতো কাজ করছে কিনা test করার জন্য (পরে ফেলে দিতে পারো)
+
 app.get("/me", verifyToken, async (req, res) => {
   const user = await usersCollection.findOne({ email: req.decoded.email });
   res.send(user);
 });
 
-export default app; // Vercel এর জন্য
+export default app; 
 
 if (!process.env.VERCEL) {
   app.listen(port, () => console.log(`Server running on port ${port}`));
