@@ -9,6 +9,8 @@ import { createMiddlewares } from "./middlewares/index.js";
 import { tuitionsRoutes } from "./routes/tuitions.js";
 import { applicationsRoutes } from "./routes/applications.js";
 import { adminRoutes } from "./routes/admin.js";
+import { paymentsRoutes } from "./routes/payments.js";
+import { usersRoutes } from "./routes/users.js";
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -39,6 +41,7 @@ await applicationsCollection.createIndex(
   { tuitionId: 1, studentEmail: 1 },
   { unique: true }
 );
+await db.collection("payments").createIndex({ stripeSessionId: 1 }, { unique: true });
 
 const auth = createAuth(db, client);
 const { verifyToken, verifyStudent, verifyTutor, verifyAdmin } =
@@ -68,6 +71,10 @@ app.get("/", (req, res) => res.send("MentorLagbe server is running"));
 app.use("/tuitions", tuitionsRoutes(db, { verifyToken, verifyTutor }));
 app.use("/applications",applicationsRoutes(db, { verifyToken, verifyStudent, verifyTutor }));
 app.use("/admin", adminRoutes(db, { verifyToken, verifyAdmin }));
+app.use("/users", usersRoutes(db, { verifyToken, verifyStudent, verifyTutor }));
+
+app.use("/payments", paymentsRoutes(db, { verifyToken }));
+
 
 
 
