@@ -12,7 +12,18 @@ export function createAuth(db, client) {
     database: mongodbAdapter(db, { client }),
     baseURL: process.env.BETTER_AUTH_URL || "http://localhost:5000",
     secret: process.env.BETTER_AUTH_SECRET,
-    trustedOrigins: [process.env.CLIENT_URL || "http://localhost:3000"],
+    trustedOrigins: async (request) => {
+      const o = request?.headers?.get?.("origin");
+      const list = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://mentorlagbe-client-gbcy.vercel.app",
+        "https://mentorlagbe-client.vercel.app",
+      ];
+      if (process.env.CLIENT_URL) list.push(process.env.CLIENT_URL);
+      if (o && !list.includes(o)) list.push(o);
+      return list;
+    },
 
     // requirement অনুযায়ী collection নাম "users"
     user: {

@@ -17,7 +17,10 @@ const port = process.env.PORT || 5000;
 
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
+    origin: (origin, callback) => {
+      // Dynamic origin reflection allows localhost and all Vercel domains seamlessly
+      callback(null, true);
+    },
     credentials: true,
   })
 );
