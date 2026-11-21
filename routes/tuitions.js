@@ -85,9 +85,29 @@ export function tuitionsRoutes(db, { verifyToken, verifyTutor }) {
 
   router.get("/filters", async (req, res) => {
     try {
-      const subjects = await tuitions.distinct("subject", publicFilter);
-      const classLevels = await tuitions.distinct("classLevel", publicFilter);
-      res.send({ subjects: subjects.sort(), classLevels: classLevels.sort() });
+      const [subDocs, classDocs] = await Promise.all([
+        tuitions
+          .aggregate([
+            { $match: publicFilter },
+            { $group: { _id: "$subject" } },
+            { $match: { _id: { $ne: null } } },
+            { $sort: { _id: 1 } },
+          ])
+          .toArray(),
+        tuitions
+          .aggregate([
+            { $match: publicFilter },
+            { $group: { _id: "$classLevel" } },
+            { $match: { _id: { $ne: null } } },
+            { $sort: { _id: 1 } },
+          ])
+          .toArray(),
+      ]);
+
+      const subjects = subDocs.map((d) => d._id).filter(Boolean);
+      const classLevels = classDocs.map((d) => d._id).filter(Boolean);
+
+      res.send({ subjects, classLevels });
     } catch (err) {
       res.status(500).send({ message: "Failed to fetch filters" });
     }
