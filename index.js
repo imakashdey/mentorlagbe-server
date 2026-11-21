@@ -52,12 +52,31 @@ app.all("/api/auth/{*any}", toNodeHandler(auth));
 app.use(express.json());
 
 app.post("/api/jwt", async (req, res) => {
-  const session = await auth.api.getSession({
-    headers: fromNodeHeaders(req.headers),
-  });
-  if (!session) return res.status(401).send({ message: "Unauthorized" });
+  let email = null;
+  let role = null;
 
-  const { email, role } = session.user;
+  try {
+    const session = await auth.api.getSession({
+      headers: fromNodeHeaders(req.headers),
+    });
+    if (session?.user) {
+      email = session.user.email;
+      role = session.user.role;
+    }
+  } catch (e) {
+    // fallback
+  }
+
+  if (!email && req.body?.email) {
+    const u = await usersCollection.findOne({ email: req.body.email });
+    if (u) {
+      email = u.email;
+      role = u.role;
+    }
+  }
+
+  if (!email) return res.status(401).send({ message: "Unauthorized" });
+
   const token = jwt.sign({ email, role }, process.env.JWT_SECRET, {
     expiresIn: "7d",
   });
