@@ -103,6 +103,28 @@ app.get("/me", verifyToken, async (req, res) => {
   const user = await usersCollection.findOne({ email: req.decoded.email });
   res.send(user);
 });
+app.get("/stats", async (req, res) => {
+  try {
+    const publicFilter = { approvalStatus: "approved", isActive: true };
+    const tuitionsCol = db.collection("tuitions");
+
+    const [tutors, students, tuitions, subjects] = await Promise.all([
+      usersCollection.countDocuments({ role: "tutor" }),
+      usersCollection.countDocuments({ role: "student" }),
+      tuitionsCol.countDocuments(publicFilter),
+      tuitionsCol.distinct("subject", publicFilter),
+    ]);
+
+    res.json({
+      tutors,
+      students,
+      tuitions,
+      subjects: subjects.filter(Boolean).length,
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to load stats" });
+  }
+});
 
 export default app;
 
