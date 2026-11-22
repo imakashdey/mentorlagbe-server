@@ -15,21 +15,24 @@ import { usersRoutes } from "./routes/users.js";
 const app = express();
 const port = process.env.PORT || 5000;
 
+const allowedOrigins = [
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+  process.env.CLIENT_URL?.replace(/\/$/, ""),
+].filter(Boolean);
+
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Dynamic origin reflection allows localhost and all Vercel domains seamlessly
-      callback(null, true);
+      if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+      callback(null, false);
     },
     credentials: true,
   })
 );
 
 const client = new MongoClient(process.env.MONGODB_URI, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    deprecationErrors: true,
-  },
+  serverApi: { version: ServerApiVersion.v1, deprecationErrors: true },
 });
 
 await client.connect();
@@ -54,67 +57,34 @@ app.all("/api/auth/{*any}", toNodeHandler(auth));
 app.use(express.json());
 
 app.post("/api/jwt", async (req, res) => {
-  let email = null;
-  let role = null;
-
   try {
     const session = await auth.api.getSession({
       headers: fromNodeHeaders(req.headers),
     });
-    if (session?.user) {
-      email = session.user.email;
-      role = session.user.role;
-    }
+    if (!session?.user) return res.status(401).send({ message: "Unauthorized" });
+
+    const { email, role } = session.user;
+    const token = jwt.sign({ email, role }, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
+    res.send({ token });
   } catch (e) {
-    // fallback
+    res.status(401).send({ message: "Unauthorized" });
   }
-
-  if (!email && req.body?.email) {
-    const u = await usersCollection.findOne({ email: req.body.email });
-    if (u) {
-      email = u.email;
-      role = u.role;
-    }
-  }
-
-  if (!email) return res.status(401).send({ message: "Unauthorized" });
-
-  const token = jwt.sign({ email, role }, process.env.JWT_SECRET, {
-    expiresIn: "7d",
-  });
-  res.send({ token });
 });
 
 app.get("/", (req, res) => res.send("MentorLagbe server is running"));
 
-
-
-app.use("/tuitions", tuitionsRoutes(db, { verifyToken, verifyTutor }));
-app.use("/applications",applicationsRoutes(db, { verifyToken, verifyStudent, verifyTutor }));
-app.use("/admin", adminRoutes(db, { verifyToken, verifyAdmin }));
-app.use("/users", usersRoutes(db, { verifyToken, verifyStudent, verifyTutor }));
-
-app.use("/payments", paymentsRoutes(db, { verifyToken }));
-
-
-
-
-app.get("/me", verifyToken, async (req, res) => {
-  const user = await usersCollection.findOne({ email: req.decoded.email });
-  res.send(user);
-});
 app.get("/stats", async (req, res) => {
   try {
     const publicFilter = { approvalStatus: "approved", isActive: true };
     const tuitionsCol = db.collection("tuitions");
-
     const [tutors, students, tuitions, subjects] = await Promise.all([
       usersCollection.countDocuments({ role: "tutor" }),
       usersCollection.countDocuments({ role: "student" }),
       tuitionsCol.countDocuments(publicFilter),
       tuitionsCol.distinct("subject", publicFilter),
     ]);
-
     res.json({
       tutors,
       students,
@@ -124,6 +94,17 @@ app.get("/stats", async (req, res) => {
   } catch (err) {
     res.status(500).json({ message: "Failed to load stats" });
   }
+});
+
+app.use("/tuitions", tuitionsRoutes(db, { verifyToken, verifyTutor }));
+app.use("/applications", applicationsRoutes(db, { verifyToken, verifyStudent, verifyTutor }));
+app.use("/admin", adminRoutes(db, { verifyToken, verifyAdmin }));
+app.use("/users", usersRoutes(db, { verifyToken, verifyStudent, verifyTutor }));
+app.use("/payments", paymentsRoutes(db, { verifyToken }));
+
+app.get("/me", verifyToken, async (req, res) => {
+  const user = await usersCollection.findOne({ email: req.decoded.email });
+  res.send(user);
 });
 
 export default app;

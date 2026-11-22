@@ -21,7 +21,7 @@ export function createAuth(db, client) {
         "https://mentorlagbe-client.vercel.app",
       ];
       if (process.env.CLIENT_URL) list.push(process.env.CLIENT_URL);
-      if (o && !list.includes(o)) list.push(o);
+  
       return list;
     },
 
