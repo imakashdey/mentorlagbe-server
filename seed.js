@@ -157,6 +157,32 @@ const payments = proUsers.map((u, i) => ({
 }));
 await db.collection("payments").insertMany(payments);
 
-console.log(`✅ Seed complete: ${users.length} users, ${tuitionDocs.length} tuitions, ${apps.length} applications, ${payments.length} payments`);
+// 5) Reviews for accepted applications
+await db.collection("reviews").deleteMany({});
+const acceptedApps = await db.collection("applications").find({ status: "accepted" }).toArray();
+const sampleReviews = [
+  { rating: 5, comment: "Incredible mentor! Clarified all my doubts and guided me with exam strategies." },
+  { rating: 5, comment: "Very systematic and punctual. Weekly tests really helped my score improve." },
+];
+for (let i = 0; i < acceptedApps.length; i++) {
+  const app = acceptedApps[i];
+  const rev = sampleReviews[i % sampleReviews.length];
+  await db.collection("reviews").insertOne({
+    tuitionId: String(app.tuitionId),
+    tuitionTitle: app.tuitionTitle,
+    studentEmail: app.studentEmail,
+    studentName: app.studentName,
+    studentImage: `https://i.pravatar.cc/150?u=${app.studentEmail}`,
+    rating: rev.rating,
+    comment: rev.comment,
+    createdAt: new Date(Date.now() - (i + 1) * 2 * 86400000),
+  });
+  await db.collection("applications").updateOne(
+    { _id: app._id },
+    { $set: { rating: rev.rating, feedback: rev.comment, reviewedAt: new Date() } }
+  );
+}
+
+console.log(`✅ Seed complete: ${users.length} users, ${tuitionDocs.length} tuitions, ${apps.length} applications, ${payments.length} payments, ${acceptedApps.length} reviews`);
 await client.close();
 process.exit(0);

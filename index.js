@@ -11,6 +11,7 @@ import { applicationsRoutes } from "./routes/applications.js";
 import { adminRoutes } from "./routes/admin.js";
 import { paymentsRoutes } from "./routes/payments.js";
 import { usersRoutes } from "./routes/users.js";
+import { reviewsRoutes } from "./routes/reviews.js";
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -101,6 +102,7 @@ app.use("/applications", applicationsRoutes(db, { verifyToken, verifyStudent, ve
 app.use("/admin", adminRoutes(db, { verifyToken, verifyAdmin }));
 app.use("/users", usersRoutes(db, { verifyToken, verifyStudent, verifyTutor }));
 app.use("/payments", paymentsRoutes(db, { verifyToken }));
+app.use("/reviews", reviewsRoutes(db, { verifyToken, verifyStudent }));
 
 app.get("/me", verifyToken, async (req, res) => {
   const user = await usersCollection.findOne({ email: req.decoded.email });
